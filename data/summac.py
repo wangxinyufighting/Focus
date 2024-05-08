@@ -10,7 +10,8 @@ CNNDM = None
 class SummaCBenchmark:
 
     def __init__(self, benchmark_folder="/home/phillab/data/summac_benchmark/",
-                 dataset_names=["cogensum", "xsumfaith", "polytope", "factcc", "summeval", "frank"], cut="val"):
+                #  dataset_names=["cogensum", "xsumfaith", "polytope", "factcc", "summeval", "frank", "hotpot_qa"], cut="val", data_name=None):
+                 dataset_names=["hotpot_qa"], cut="test", data_name=None):
         assert cut in ["val", "test"], "Unrecognized cut for the Fact Checking Benchmark"
         if not os.path.exists(benchmark_folder):
             os.makedirs(benchmark_folder)
@@ -20,6 +21,7 @@ class SummaCBenchmark:
         self.cnndm_id2reference = None
         self.cnndm = None
         self.xsum = None
+        self.data_name = data_name
 
         self.datasets = []
         for dataset_name in dataset_names:
@@ -35,6 +37,10 @@ class SummaCBenchmark:
                 self.load_summeval()
             elif dataset_name == "frank":
                 self.load_frank()
+            elif dataset_name == 'hotpot_qa':
+                self.load_hotpot_qa()
+            elif data_name == 'mind_data':
+                self.load_mind_data()
             else:
                 raise ValueError("Unrecognized dataset name: %s" % (dataset_name))
 
@@ -377,6 +383,47 @@ class SummaCBenchmark:
                             "model_name": d["model_name"], "annotations": annotations, "dataset": "frank",
                             "origin": origin, "error_type": error_type})
         self.datasets.append({"name": "frank", "dataset": dataset})
+
+    def load_hotpot_qa(self):
+        dataset_folder = os.path.join(self.benchmark_folder, "hotpot_qa/")
+        test_file = os.path.join(dataset_folder, self.data_name)
+        print(test_file) 
+
+        raw_dataset = []
+        with open(test_file, "r") as f:
+            for line in f.readlines():
+                raw_dataset.append(json.loads(line.strip()))
+
+        dataset = []
+        for d in raw_dataset:
+            article = d["prompt"]
+            level = d["level"]
+            dataset_type = f"hotpot_qa_{level}"
+            label = d['label']
+            summary = d["predict"]
+
+            dataset.append({"document": article, "claim": summary, "label": label, "dataset": dataset_type})
+
+        self.datasets.append({"name": "hotpot_qa", "dataset": dataset})
+
+    def load_mind_data(self):
+        dataset_folder = os.path.join(self.benchmark_folder, "helm/")
+        test_file = os.path.join(dataset_folder, 'test.json')
+        print(test_file) 
+
+        with open(test_file, "r") as f:
+            raw_dataset = json.loads(f)
+
+        dataset = []
+        for d in raw_dataset:
+            article = d["prompt"]
+            sentences = d["sentences"]
+            
+
+            dataset.append({"document": article, "claim": summary, "label": label})
+
+        self.datasets.append({"name": "hotpot_qa", "dataset": dataset})
+
 
     def get_dataset(self, dataset_name):
         for dataset in self.datasets:

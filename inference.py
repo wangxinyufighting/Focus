@@ -1,5 +1,8 @@
 import argparse
-from task import WikiBioTask
+from task import WikiBioTask, HotpotQATask
+from sklearn.metrics import precision_recall_curve, roc_auc_score, classification_report, balanced_accuracy_score, auc
+from tqdm import tqdm
+import json
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -24,3 +27,24 @@ if __name__ == "__main__":
         t = WikiBioTask(args)
         t.evaluate(concept=concepts[0], response=outputs[0], max_score=30.)
         t.evaluate(concept=concepts[1], response=outputs[1], max_score=30.)
+
+    if args.task == "hotpot_qa":
+        t = HotpotQATask(args)
+        labels = []
+        logits = []
+        test_file = '/root/autodl-tmp/Focus/data/summac_benchmark/hotpot_qa/test_easy_has_support_llama2-7b-chat-hf_final_label.json'
+        with open(test_file, "r") as f:
+            for line in tqdm(f.readlines()):
+                data = json.loads(line.strip())
+                concept = data['prompt']
+                output = data['predict']
+                label = data['label']
+                labels.append(label)
+                _, passage = t.evaluate(concept=concept, response=output, max_score=30.)
+                logits.append(passage)
+        
+        precision, recall, thresholds = precision_recall_curve(labels, logits)
+        auc_precision_recall = auc(recall, precision)
+        auroc = roc_auc_score(labels, logits)
+
+        print(f'auc_pr:{auc_precision_recall}, auroc:{auroc}')
